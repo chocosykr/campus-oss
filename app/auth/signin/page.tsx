@@ -3,10 +3,10 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Loader2, Github } from "lucide-react";
 
-export default function SignInPage() {
+function SignInContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const registered = searchParams.get("registered");
@@ -133,5 +133,13 @@ export default function SignInPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInContent />
+    </Suspense>
   );
 }
