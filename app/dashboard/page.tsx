@@ -1,37 +1,30 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getInstructorDashboard, getStudentDashboard } from "@/lib/queries/dashboard";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, FileText, Users, Plus } from "lucide-react";
+import { BookOpen, FileText, Plus } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  const userId = (session?.user as any)?.id;
-  const role = (session?.user as any)?.role;
+  
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
 
-  const [courseCount, recentCourses] = await Promise.all([
-    prisma.course.count(
-      role === "INSTRUCTOR"
-        ? { where: { instructorId: userId } }
-        : undefined
-    ),
-    prisma.course.findMany({
-      where: role === "INSTRUCTOR" ? { instructorId: userId } : undefined,
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: {
-        instructor: { select: { name: true } },
-        _count: { select: { projects: true } },
-      },
-    }),
-  ]);
+  const userId = (session.user as any).id;
+  const role = (session.user as any).role;
+
+  const data = role === "INSTRUCTOR" 
+    ? await getInstructorDashboard(userId)
+    : await getStudentDashboard(userId)
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
-          Welcome back, {session?.user?.name?.split(" ")[0] ?? "there"} 👋
+          Welcome back, {session.user.name?.split(" ")[0] ?? "there"} 👋
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
           Here's what's happening with your courses.
@@ -39,21 +32,16 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard
           icon={<BookOpen className="h-5 w-5" />}
-          label="Courses"
-          value={courseCount}
+          label={role === "INSTRUCTOR" ? "Courses" : "Enrolled Courses"}
+          value={data.courseCount}
         />
         <StatCard
           icon={<FileText className="h-5 w-5" />}
           label="Submissions"
-          value={0}
-        />
-        <StatCard
-          icon={<Users className="h-5 w-5" />}
-          label="Teams"
-          value={0}
+          value={data.submissionCount}
         />
       </div>
 
@@ -83,17 +71,19 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-3 divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-          {recentCourses.length === 0 ? (
+          {data.recentCourses.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-zinc-400">
               No courses yet.{" "}
-              {(role === "INSTRUCTOR" || role === "ADMIN") && (
+              {role === "INSTRUCTOR" ? (
                 <Link href="/courses/new" className="underline">
                   Create one
                 </Link>
+              ) : (
+                <span>Ask your instructor for a join code.</span>
               )}
             </div>
           ) : (
-            recentCourses.map((course) => (
+            data.recentCourses.map((course: any) => (
               <Link
                 key={course.id}
                 href={`/courses/${course.id}`}
@@ -104,8 +94,8 @@ export default async function DashboardPage() {
                     {course.title}
                   </p>
                   <p className="text-xs text-zinc-400">
-                    {course._count.projects} project
-                    {course._count.projects !== 1 ? "s" : ""}
+                    {course._count.assignments} assignment
+                    {course._count.assignments !== 1 ? "s" : ""}
                   </p>
                 </div>
                 <span className="text-xs text-zinc-400">→</span>

@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { nanoid } from "nanoid";
 
 // ── Create ────────────────────────────────────────────────────────────────────
 
@@ -27,11 +28,15 @@ export async function createCourseAction(
 
   if (!title) return { error: "Title is required." };
 
+  // Generate unique join code
+  const joinCode = nanoid(8).toUpperCase();
+
   const course = await prisma.course.create({
     data: {
       title,
       description: description || null,
       instructorId: (session.user as any).id,
+      joinCode,
     },
   });
 
@@ -39,7 +44,7 @@ export async function createCourseAction(
     data: {
       userId: (session.user as any).id,
       action: "created_course",
-      metadata: { courseId: course.id, title },
+      metadata: { courseId: course.id, title, joinCode },
     },
   });
 
@@ -72,7 +77,7 @@ export async function getCourses({
       where,
       include: {
         instructor: { select: { id: true, name: true, image: true } },
-        _count: { select: { projects: true } },
+        _count: { select: { assignments: true, enrollments: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
@@ -96,11 +101,13 @@ export async function getCourse(id: string) {
     where: { id },
     include: {
       instructor: { select: { id: true, name: true, image: true, email: true } },
-      projects: {
+      assignments: {
         orderBy: { createdAt: "desc" },
-        include: { _count: { select: { teams: true, submissions: true } } },
+        include: { 
+          _count: { select: { submissions: true } } 
+        },
       },
-      _count: { select: { projects: true } },
+      _count: { select: { assignments: true, enrollments: true } },
     },
   });
 }
@@ -124,4 +131,45 @@ export async function deleteCourseAction(courseId: string) {
   await prisma.course.delete({ where: { id: courseId } });
   revalidatePath("/courses");
   redirect("/courses");
+}
+
+// ── Enroll (students join via code) ──────────────────────────────────────────
+
+export async function enrollInCourseAction(
+  _prev: { error?: string },
+  formData: FormData
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) redirect("/auth/signin");
+
+  const joinCode = (formData.get("joinCode") as string)?.trim().toUpperCase();
+  if (!joinCode) return { error: "Join code is required." };
+
+  const course = await prisma.course.findUnique({ where: { joinCode } });
+  if (!course) return { error: "Invalid join code." };
+
+  const userId = (session.user as any).id;
+
+  // Check if already enrolled
+  const existing = await prisma.enrollment.findUnique({
+    where: { userId_courseId: { userId, courseId: course.id } },
+  });
+
+  if (existing) return { error: "You're already enrolled in this course." };
+
+  await prisma.enrollment.create({
+    data: { userId, courseId: course.id },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: "enrolled_in_course",
+      metadata: { courseId: course.id, title: course.title },
+    },
+  });
+
+  revalidatePath("/courses");
+  revalidatePath("/dashboard");
+  redirect(`/courses/${course.id}`);
 }

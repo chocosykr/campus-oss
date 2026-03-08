@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Calendar, FolderKanban } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, FileCode } from "lucide-react";
 
 interface CourseDetailPageProps {
   params: Promise<{ id: string }>;
@@ -20,6 +20,7 @@ export default async function CourseDetailPage({
   if (!course) notFound();
 
   const isOwner = course.instructorId === userId || role === "ADMIN";
+  const assignments = course.assignments ?? [];
 
   return (
     <div className="space-y-8">
@@ -44,69 +45,85 @@ export default async function CourseDetailPage({
             <p className="mt-2 text-xs text-zinc-400">
               Taught by {course.instructor.name ?? course.instructor.email}
             </p>
+            {isOwner && (
+              <p className="mt-1 text-xs font-mono text-zinc-400">
+                Join code: <span className="font-semibold">{course.joinCode}</span>
+              </p>
+            )}
           </div>
 
           {isOwner && (
             <Link
-              href={`/courses/${course.id}/projects/new`}
+              href={`/courses/${course.id}/assignments/new`}
               className="flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               <Plus className="h-4 w-4" />
-              New Project
+              New Assignment
             </Link>
           )}
         </div>
       </div>
 
-      {/* Projects */}
+      {/* Assignments */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Projects ({course._count.projects})
+          Assignments ({course._count?.assignments ?? 0})
         </h2>
 
-        {course.projects.length === 0 ? (
+        {assignments.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-200 py-12 text-center dark:border-zinc-800">
-            <FolderKanban className="mx-auto h-8 w-8 text-zinc-300" />
-            <p className="mt-2 text-sm text-zinc-400">No projects yet.</p>
+            <FileCode className="mx-auto h-8 w-8 text-zinc-300" />
+            <p className="mt-2 text-sm text-zinc-400">No assignments yet.</p>
             {isOwner && (
               <Link
-                href={`/courses/${course.id}/projects/new`}
+                href={`/courses/${course.id}/assignments/new`}
                 className="mt-3 inline-block text-sm font-medium underline text-zinc-500 hover:text-zinc-900"
               >
-                Create the first project
+                Create the first assignment
               </Link>
             )}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {course.projects.map((project) => (
+            {assignments.map((assignment:any) => (
               <Link
-                key={project.id}
-                href={`/courses/${course.id}/projects/${project.id}`}
+                key={assignment.id}
+                href={`/courses/${course.id}/assignments/${assignment.id}`}
                 className="group rounded-xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
               >
-                <h3 className="font-medium text-zinc-900 dark:text-white">
-                  {project.title}
-                </h3>
-                {project.description && (
+                <div className="flex items-start justify-between">
+                  <h3 className="font-medium text-zinc-900 dark:text-white">
+                    {assignment.title}
+                  </h3>
+                  <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    {assignment.language}
+                  </span>
+                </div>
+                {assignment.description && (
                   <p className="mt-1 line-clamp-2 text-sm text-zinc-500">
-                    {project.description}
+                    {assignment.description}
                   </p>
                 )}
                 <div className="mt-4 flex items-center gap-4 text-xs text-zinc-400">
-                  {project.dueDate && (
+                  {assignment.dueDate && (
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      Due {new Date(project.dueDate).toLocaleDateString()}
+                      Due {new Date(assignment.dueDate).toLocaleDateString()}
                     </span>
                   )}
-                  <span>{project._count.teams} teams</span>
-                  <span>{project._count.submissions} submissions</span>
+                  <span>{assignment._count?.submissions ?? 0} submissions</span>
                 </div>
               </Link>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Enrollment Stats */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-sm text-zinc-500">
+          {course._count?.enrollments ?? 0} student{course._count?.enrollments !== 1 ? 's' : ''} enrolled
+        </p>
       </div>
     </div>
   );

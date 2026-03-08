@@ -1,30 +1,29 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema for Code Submission Platform
+// Functional, no accessories - just what's needed
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+// ============================================================================
+// USERS & AUTH
+// ============================================================================
 
 model User {
   id            String         @id @default(cuid())
-  name          String?        // make optional for OAuth
+  name          String?
   email         String         @unique
-  emailVerified DateTime?      // required by NextAuth
-  image         String?        // renamed from profileImage
+  emailVerified DateTime?
+  image         String?
   password      String?
   role          Role           @default(STUDENT)
-  profileImage  String?
   courses       Course[]       @relation("InstructorCourses")
-  teamMembers   TeamMember[]
+  enrollments   Enrollment[]
+  submissions   Submission[]
   reviews       Review[]
   notifications Notification[]
   activityLogs  ActivityLog[]
@@ -40,145 +39,7 @@ enum Role {
   ADMIN
 }
 
-model Course {
-  id           String    @id @default(cuid())
-  title        String
-  description  String?
-  instructorId String
-  instructor   User      @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: Cascade)
-  projects     Project[]
-  analytics    AnalyticsEvent[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  @@index([instructorId])
-}
-
-model Project {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  dueDate     DateTime?
-  courseId    String
-  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  teams       Team[]
-  submissions Submission[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  @@index([courseId])
-}
-
-model Team {
-  id          String       @id @default(cuid())
-  name        String
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  members     TeamMember[]
-  submissions Submission[]
-  createdAt   DateTime     @default(now())
-
-  @@index([projectId])
-}
-
-model TeamMember {
-  id        String   @id @default(cuid())
-  userId    String
-  teamId    String
-  role      String   @default("member") // "lead" or "member"
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  joinedAt  DateTime @default(now())
-
-  @@unique([userId, teamId]) // prevent duplicate memberships
-  @@index([userId])
-  @@index([teamId])
-}
-
-model Submission {
-  id        String   @id @default(cuid())
-  teamId    String
-  projectId String
-  fileUrl   String
-  fileName  String
-  fileSize  Int      // bytes
-  version   Int      @default(1)
-  status    Status   @default(PENDING)
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  reviews   Review[]
-  createdAt DateTime @default(now())
-
-  @@index([teamId])
-  @@index([projectId])
-  @@index([status])
-}
-
-enum Status {
-  PENDING
-  REVIEWED
-  APPROVED
-  REJECTED
-}
-
-model Review {
-  id           String     @id @default(cuid())
-  submissionId String
-  reviewerId   String
-  score        Int?       @db.SmallInt // 0-100
-  comment      String?    @db.Text
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  reviewer     User       @relation(fields: [reviewerId], references: [id])
-  createdAt    DateTime   @default(now())
-
-  @@index([submissionId])
-  @@index([reviewerId])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  message   String   @db.Text
-  type      NotificationType @default(INFO)
-  link      String?  // e.g., "/submissions/abc123"
-  read      Boolean  @default(false)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@index([userId, read])
-}
-
-enum NotificationType {
-  INFO
-  SUBMISSION
-  REVIEW
-  SYSTEM
-}
-
-model ActivityLog {
-  id        String   @id @default(cuid())
-  userId    String
-  action    String   // "created_course", "submitted_file", "reviewed_submission"
-  metadata  Json?    // flexible JSON for additional context
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([createdAt])
-}
-
-model AnalyticsEvent {
-  id        String   @id @default(cuid())
-  courseId  String
-  eventType String   // "submission_created", "review_posted", etc.
-  metadata  Json?
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@index([courseId])
-  @@index([eventType])
-}
-
+// NextAuth required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -211,4 +72,167 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ============================================================================
+// COURSES & ENROLLMENT
+// ============================================================================
+
+model Course {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?          @db.Text
+  joinCode     String           @unique
+  instructorId String
+  instructor   User             @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: Cascade)
+  assignments  Assignment[]
+  enrollments  Enrollment[]
+  analytics    AnalyticsEvent[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([instructorId])
+  @@index([joinCode])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  courseId   String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+// ============================================================================
+// ASSIGNMENTS & CODE EXECUTION
+// ============================================================================
+
+model Assignment {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  dueDate     DateTime?
+  language    String
+  starterCode String?      @db.Text
+  courseId    String
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  testCases   TestCase[]
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([courseId])
+  @@index([dueDate])
+}
+
+model TestCase {
+  id             String     @id @default(cuid())
+  assignmentId   String
+  input          String     @db.Text
+  expectedOutput String     @db.Text
+  hidden         Boolean    @default(false)
+  timeLimit      Int        @default(5000)
+  memoryLimit    Int        @default(256)
+  assignment     Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  createdAt      DateTime   @default(now())
+
+  @@index([assignmentId])
+}
+
+// ============================================================================
+// SUBMISSIONS & REVIEWS
+// ============================================================================
+
+model Submission {
+  id           String     @id @default(cuid())
+  userId       String
+  assignmentId String
+  code         String     @db.Text
+  language     String
+  testResults  Json?
+  status       Status     @default(PENDING)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  reviews      Review[]
+  createdAt    DateTime   @default(now())
+
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum Status {
+  PENDING
+  GRADED
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+model Review {
+  id           String     @id @default(cuid())
+  submissionId String
+  reviewerId   String
+  score        Int?       @db.SmallInt
+  comment      String?    @db.Text
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer     User       @relation(fields: [reviewerId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@index([submissionId])
+  @@index([reviewerId])
+}
+
+// ============================================================================
+// NOTIFICATIONS & ANALYTICS
+// ============================================================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  message   String           @db.Text
+  type      NotificationType @default(INFO)
+  link      String?
+  read      Boolean          @default(false)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+enum NotificationType {
+  INFO
+  SUBMISSION
+  REVIEW
+  SYSTEM
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  metadata  Json?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  courseId  String
+  eventType String
+  metadata  Json?
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([courseId])
+  @@index([eventType])
 }
