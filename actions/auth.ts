@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { Role } from "@/generated/prisma";
+import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 export type SignupState = {
