@@ -1,4 +1,4 @@
-import { getCourse } from "@/actions/courses";
+import { getCourse } from "@/lib/queries/courses"; // <- fixed
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -9,13 +9,13 @@ interface CourseDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function CourseDetailPage({
-  params,
-}: CourseDetailPageProps) {
+export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
+  const { id } = await params;
+
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
   const userId = (session?.user as any)?.id;
-  const { id } = await params;
+
   const course = await getCourse(id);
   if (!course) notFound();
 
@@ -85,7 +85,7 @@ export default async function CourseDetailPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {assignments.map((assignment:any) => (
+            {assignments.map((assignment: any) => (
               <Link
                 key={assignment.id}
                 href={`/courses/${course.id}/assignments/${assignment.id}`}

@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { signupAction } from "@/actions/auth";
+import { signupAction } from "@/lib/actions/auth";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Loader2, Github } from "lucide-react";
@@ -100,7 +100,7 @@ export default function SignUpPage() {
                                 ].map(({ value, label }) => (
                                     <label
                                         key={value}
-                                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-50 dark:border-zinc-700 dark:has-[:checked]:border-white dark:has-[:checked]:bg-zinc-800"
+                                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm has-checked:border-zinc-900 has-checked:bg-zinc-50 dark:border-zinc-700 dark:has-checked:border-white dark:has-checked:bg-zinc-800"
                                     >
                                         <input
                                             type="radio"

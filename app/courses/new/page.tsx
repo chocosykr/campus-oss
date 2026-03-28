@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { createCourseAction } from "@/actions/courses";
+import { createCourseAction } from "@/lib/actions/courses";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
