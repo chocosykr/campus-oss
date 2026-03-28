@@ -15,10 +15,13 @@ export type CourseFormState = { error?: string };
 export async function createCourseAction(
   _prev: CourseFormState,
   formData: FormData
-): Promise<CourseFormState | void> {
+): Promise<CourseFormState> {
 
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/auth/signin");
+  if (!session?.user) {
+    redirect("/auth/signin");
+    return {};
+  }
 
   const userId = (session.user as any).id;
   const role = (session.user as any).role;
@@ -67,6 +70,7 @@ export async function createCourseAction(
 
   revalidatePath("/courses");
   redirect(`/courses/${course!.id}`);
+  return {};
 }
 
 // ─────────────────────────────
@@ -74,10 +78,13 @@ export async function createCourseAction(
 // ─────────────────────────────
 export async function deleteCourseAction(
   courseId: string
-): Promise<{ error?: string } | void> {
+): Promise<{ error?: string }> {
 
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/auth/signin");
+  if (!session?.user) {
+    redirect("/auth/signin");
+    return {};
+  }
 
   const userId = (session.user as any).id;
   const role = (session.user as any).role;
@@ -98,6 +105,7 @@ export async function deleteCourseAction(
 
   revalidatePath("/courses");
   redirect("/courses");
+  return {};
 }
 
 // ─────────────────────────────
@@ -106,10 +114,13 @@ export async function deleteCourseAction(
 export async function enrollInCourseAction(
   _prev: { error?: string },
   formData: FormData
-): Promise<{ error?: string } | void> {
+): Promise<{ error?: string }> {
 
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/auth/signin");
+  if (!session?.user) {
+    redirect("/auth/signin");
+    return {};
+  }
 
   const userId = (session.user as any).id;
 
@@ -146,6 +157,6 @@ export async function enrollInCourseAction(
 
   revalidatePath("/courses");
   revalidatePath("/dashboard");
-
   redirect(`/courses/${course.id}`);
+  return {};
 }
