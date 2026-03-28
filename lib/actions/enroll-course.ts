@@ -31,5 +31,13 @@ export async function enrollCourse(formData: FormData) {
     },
   });
 
+  const existing = await prisma.enrollment.findUnique({
+    where: {
+      userId_courseId: { userId, courseId: course.id },
+    },
+  });
+
+  if (existing) return { error: "Already enrolled." };
+
   redirect(`/courses/${course.id}`);
 }
