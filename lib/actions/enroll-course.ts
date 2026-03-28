@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
-export async function enrollCourse(formData: FormData) {
+export async function enrollCourse(formData: FormData): Promise<void> {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id;
 
@@ -24,20 +24,22 @@ export async function enrollCourse(formData: FormData) {
     throw new Error("Invalid join code");
   }
 
-  await prisma.enrollment.create({
-    data: {
-      userId,
-      courseId: course.id,
-    },
-  });
-
   const existing = await prisma.enrollment.findUnique({
     where: {
       userId_courseId: { userId, courseId: course.id },
     },
   });
 
-  if (existing) return { error: "Already enrolled." };
+  if (existing) {
+    redirect(`/courses/${course.id}`);
+  }
+
+  await prisma.enrollment.create({
+    data: {
+      userId,
+      courseId: course.id,
+    },
+  });
 
   redirect(`/courses/${course.id}`);
 }
