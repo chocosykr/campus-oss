@@ -226,7 +226,7 @@ export function StudentWorkspace({ assignment }: { assignment: any }) {
       </div>
 
       {/* Right Column: Code Editor */}
-      <div className="flex flex-col h-[600px] border rounded-lg overflow-hidden shadow-sm">
+      <div className="flex flex-col h-150 border rounded-lg overflow-hidden shadow-sm">
         <div className="bg-zinc-100 p-2 border-b flex justify-between items-center">
           <span className="text-sm font-medium text-zinc-600 px-2">
             main.{assignment.language === 'python' ? 'py' : assignment.language === 'javascript' ? 'js' : 'txt'}
@@ -234,7 +234,7 @@ export function StudentWorkspace({ assignment }: { assignment: any }) {
         </div>
 
         <textarea
-          className="flex-grow p-4 bg-zinc-900 text-green-400 font-mono text-sm focus:outline-none resize-none leading-relaxed"
+          className="grow p-4 bg-zinc-900 text-green-400 font-mono text-sm focus:outline-none resize-none leading-relaxed"
           value={code}
           onChange={(e) => setCode(e.target.value)}
           spellCheck="false"
