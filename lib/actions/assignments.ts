@@ -4,15 +4,26 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
 export async function createAssignment(courseId: string, formData: FormData) {
-  const title = formData.get("title")?.toString()
-  const description = formData.get("description")?.toString()
-  const language = formData.get("language")?.toString()
-  const starterCode = formData.get("starterCode")?.toString()
+  const title = formData.get("title")?.toString();
+  const description = formData.get("description")?.toString();
+  const language = formData.get("language")?.toString();
+  const starterCode = formData.get("starterCode")?.toString();
+  const dueDateRaw = formData.get("dueDate")?.toString();
+  const dueDate = dueDateRaw ? new Date(dueDateRaw) : null;
 
-  const dueDateRaw = formData.get("dueDate")?.toString()
-  const dueDate = dueDateRaw ? new Date(dueDateRaw) : null
+  // Parse test cases — sent as testCase_input_0, testCase_expectedOutput_0, etc.
+  const testCases: { input: string; expectedOutput: string; hidden: boolean }[] = [];
+  let i = 0;
+  while (formData.get(`testCase_input_${i}`) !== null) {
+    testCases.push({
+      input: formData.get(`testCase_input_${i}`)?.toString() ?? '',
+      expectedOutput: formData.get(`testCase_expectedOutput_${i}`)?.toString() ?? '',
+      hidden: formData.get(`testCase_hidden_${i}`) === 'on',
+    });
+    i++;
+  }
 
-  await prisma.assignment.create({
+  const assignment = await prisma.assignment.create({
     data: {
       title: title!,
       description,
@@ -20,10 +31,13 @@ export async function createAssignment(courseId: string, formData: FormData) {
       starterCode,
       dueDate,
       courseId,
+      testCases: {
+        create: testCases,
+      },
     },
-  })
+  });
 
-  revalidatePath(`/courses/${courseId}`)
+  revalidatePath(`/courses/${courseId}`);
 }
 
 // Action to edit the main assignment details

@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // Adjust path if needed
+import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function submitCode(assignmentId: string, code: string, language: string) {
@@ -13,18 +13,47 @@ export async function submitCode(assignmentId: string, code: string, language: s
       return { error: "You must be logged in to submit code." };
     }
 
-    // 1. Create the submission in the database
-    const submission = await prisma.submission.create({
-      data: {
-        userId: session.user.id,
-        assignmentId,
-        code,
-        language,
-        status: "PENDING", // Initial status before Judge0 runs
-      }
+    // 1. ADD THIS DEBUG LOG to see what is missing
+    console.log("[DEBUG submitCode] Incoming data:", {
+      userId: session.user.id,
+      assignmentId,
+      codeHasLength: code?.length,
+      language
     });
 
-    // 2. Push job to execution queue
+    // Replace the upsert with this:
+    const existing = await prisma.submission.findUnique({
+      where: {
+        userId_assignmentId: {
+          userId: session.user.id,
+          assignmentId,
+        },
+      },
+    });
+
+    let submission;
+    if (existing) {
+      submission = await prisma.submission.update({
+        where: { id: existing.id },
+        data: {
+          code,
+          language,
+          status: 'PENDING',
+        },
+      });
+    } else {
+      submission = await prisma.submission.create({
+        data: {
+          userId: session.user.id,
+          assignmentId,
+          code,
+          language,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    // Push job to execution queue
     const workerRes = await fetch(`${process.env.WORKER_URL}/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -39,13 +68,13 @@ export async function submitCode(assignmentId: string, code: string, language: s
       console.error('[submitCode] Worker rejected job:', await workerRes.text());
     }
 
-    // 3. Tell Next.js to clear the cache for this route so the new submission shows up
     revalidatePath(`/courses/[id]/assignments/${assignmentId}`, 'page');
 
     return { success: true, submissionId: submission.id };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Submission error:", error);
+    console.error("Submission error meta:", JSON.stringify(error?.meta, null, 2));
     return { error: "Failed to submit code. Please try again." };
   }
 }

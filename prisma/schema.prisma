@@ -162,6 +162,7 @@ model Submission {
   reviews      Review[]
   createdAt    DateTime   @default(now())
 
+  @@unique([userId, assignmentId])
   @@index([userId])
   @@index([assignmentId])
   @@index([status])
